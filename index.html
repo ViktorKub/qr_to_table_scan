@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<title>QR Scanner PWA</title>
+
+<style>
+  /* ... (ваш стиль без изменений) ... */
+  body { margin: 0; font-family: sans-serif; background: #f4f4f9; }
+  #controls { padding: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  button { flex: 1 1 45%; padding: 14px; font-size: 14px; border-radius: 8px; border: none; background: #2f80ed; color: #fff; font-weight: bold; }
+  button.secondary { background: #6c757d; }
+  #videoContainer { display: none; position: fixed; top: 0; left: 0; z-index: 100; background: #000; }
+  #video { width: 100vw; height: 100vh; object-fit: cover; }
+  #closeVideo { position: absolute; top: 20px; right: 20px; z-index: 101; background: rgba(255,0,0,0.7); width: auto; flex: none; }
+  table { width: 100%; border-collapse: collapse; background: white; }
+  th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
+  th { background: #eee; }
+</style>
+</head>
+<body>
+
+<div id="controls">
+  <button id="start">📸 Скан QR</button>
+  <button id="manualBtn" class="secondary">⌨️ Вручную</button>
+  <button id="remove" class="secondary">🗑️ Удалить</button>
+  <button id="exportBtn" style="background: #28a745;">💾 CSV</button>
+</div>
+
+<div id="videoContainer">
+  <button id="closeVideo">Закрыть</button>
+  <video id="video" autoplay playsinline></video>
+  <canvas id="canvas" hidden></canvas>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>№</th>
+      <th>ID</th>
+      <th>Доп.</th>
+      <th>Кол-во</th>
+      <th>Статус</th>
+    </tr>
+  </thead>
+  <tbody id="tableBody"></tbody>
+</table>
+
+<script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
+<script>
+  // Регистрация PWA
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
+
+  const startBtn = document.getElementById("start");
+  const manualBtn = document.getElementById("manualBtn");
+  const removeBtn = document.getElementById("remove");
+  const exportBtn = document.getElementById("exportBtn");
+  const videoContainer = document.getElementById("videoContainer");
+  const closeVideo = document.getElementById("closeVideo");
+  const video = document.getElementById("video");
+  const canvas = document.getElementById("canvas");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const tableBody = document.getElementById("tableBody");
+
+  let stream = null;
+  let scanning = false;
+  let counter = 0;
+
+  // --- ЛОГИКА КАМЕРЫ ---
+  startBtn.onclick = async () => {
+    try {
+      videoContainer.style.display = "block";
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      video.srcObject = stream;
+      
+      // Зум для новых Android
+      const track = stream.getVideoTracks()[0];
+      const caps = track.getCapabilities?.();
+      if (caps?.zoom) {
+        await track.applyConstraints({ advanced: [{ zoom: Math.min(2, caps.zoom.max) }] });
+      }
+
+      scanning = true;
+      scan();
+    } catch (e) { alert("Ошибка камеры: " + e); }
+  };
+
+  closeVideo.onclick = stopCamera;
+
+  function stopCamera() {
+    scanning = false;
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    videoContainer.style.display = "none";
+  }
+
+  function scan() {
+    if (!scanning) return;
+    if (video.readyState === video.HAVE_ENOUGH_DATA) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const qr = jsQR(img.data, img.width, img.height);
+      if (qr) {
+        processAndAdd(qr.data);
+        stopCamera();
+        return;
+      }
+    }
+    requestAnimationFrame(scan);
+  }
+
+  // --- ЛОГИКА ДАННЫХ ---
+  manualBtn.onclick = () => {
+    const val = prompt("Введите данные в формате: Значение -- Доп", "000123 -- 1");
+    if (val) processAndAdd(val);
+  };
+
+  function processAndAdd(data) {
+    counter++;
+    let first = data, second = "-";
+    if (data.includes("--")) {
+      const parts = data.split("--");
+      first = parts[0].trim().replace(/^0+/, '') || "0";
+      second = parts[1].trim();
+    }
+    addRow(counter, first, second);
+  }
+
+  function addRow(num, v1, v2) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${num}</td><td>${v1}</td><td>${v2}</td><td contenteditable="true">1</td><td>OK</td>`;
+    tableBody.appendChild(tr);
+  }
+
+  removeBtn.onclick = () => {
+    if (tableBody.lastElementChild) {
+      tableBody.removeChild(tableBody.lastElementChild);
+      counter--;
+    }
+  };
+
+  exportBtn.onclick = () => {
+    let csv = "N,ID,Extra,Qty,Status\n";
+    document.querySelectorAll("#tableBody tr").forEach(tr => {
+      const cols = Array.from(tr.querySelectorAll("td")).map(td => td.innerText);
+      csv += cols.join(",") + "\n";
+    });
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `scan_${new Date().getTime()}.csv`;
+    a.click();
+  };
+</script>
+</body>
+</html>
