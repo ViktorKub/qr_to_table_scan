@@ -4,20 +4,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="manifest" href="manifest.json">
-<title>QR Scanner PWA</title>
+<title>QR Scanner Inventory PRO</title>
 
 <style>
-  /* ... (ваш стиль без изменений) ... */
-  body { margin: 0; font-family: sans-serif; background: #f4f4f9; }
-  #controls { padding: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
-  button { flex: 1 1 45%; padding: 14px; font-size: 14px; border-radius: 8px; border: none; background: #2f80ed; color: #fff; font-weight: bold; }
+  body { margin: 0; font-family: sans-serif; background: #f4f4f9; padding-bottom: 80px; }
+  #controls { padding: 12px; display: flex; gap: 8px; flex-wrap: wrap; position: sticky; top: 0; background: #f4f4f9; z-index: 10; border-bottom: 1px solid #ddd; }
+  button { flex: 1 1 45%; padding: 14px; font-size: 14px; border-radius: 8px; border: none; background: #2f80ed; color: #fff; font-weight: bold; cursor: pointer; }
   button.secondary { background: #6c757d; }
-  #videoContainer { display: none; position: fixed; top: 0; left: 0; z-index: 100; background: #000; }
-  #video { width: 100vw; height: 100vh; object-fit: cover; }
-  #closeVideo { position: absolute; top: 20px; right: 20px; z-index: 101; background: rgba(255,0,0,0.7); width: auto; flex: none; }
-  table { width: 100%; border-collapse: collapse; background: white; }
-  th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }
-  th { background: #eee; }
+  
+  #videoContainer { display: none; position: fixed; top: 0; left: 0; z-index: 100; background: #000; width: 100%; height: 100%; }
+  #video { width: 100%; height: 100%; object-fit: cover; }
+  #closeVideo { position: absolute; top: 20px; right: 20px; z-index: 101; background: rgba(255,0,0,0.8); width: auto; }
+
+  .table-wrapper { width: 100%; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; background: white; min-width: 600px; }
+  th, td { border: 1px solid #ddd; padding: 10px; text-align: center; font-size: 13px; }
+  th { background: #eee; position: sticky; top: 0; }
+  
+  .db-loader { position: fixed; bottom: 0; left: 0; width: 100%; padding: 12px; background: #fff; border-top: 1px solid #ccc; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  #csvFile { display: none; }
+  .status-bad { color: #d93025; font-weight: bold; }
+  .status-ok { color: #188038; }
+  #dbStatus { font-size: 11px; color: #666; }
 </style>
 </head>
 <body>
@@ -26,7 +34,7 @@
   <button id="start">📸 Скан QR</button>
   <button id="manualBtn" class="secondary">⌨️ Вручную</button>
   <button id="remove" class="secondary">🗑️ Удалить</button>
-  <button id="exportBtn" style="background: #28a745;">💾 CSV</button>
+  <button id="exportBtn" style="background: #28a745;">💾 Выгрузить CSV</button>
 </div>
 
 <div id="videoContainer">
@@ -35,67 +43,125 @@
   <canvas id="canvas" hidden></canvas>
 </div>
 
-<table>
-  <thead>
-    <tr>
-      <th>№</th>
-      <th>ID</th>
-      <th>Доп.</th>
-      <th>Кол-во</th>
-      <th>Статус</th>
-    </tr>
-  </thead>
-  <tbody id="tableBody"></tbody>
-</table>
+<div class="table-wrapper">
+  <table>
+    <thead>
+      <tr>
+        <th>№</th>
+        <th>Код</th>
+        <th>Доп.</th>
+        <th>Наименование</th>
+        <th>Остаток</th>
+        <th>Ячейка</th>
+        <th>Кол-во</th>
+        <th>Статус</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<div class="db-loader">
+  <input type="file" id="csvFile" accept=".csv">
+  <button onclick="document.getElementById('csvFile').click()" style="background: #555; width: 90%; padding: 10px;">📂 Обновить базу товаров (CSV)</button>
+  <span id="dbStatus">Загрузка...</span>
+</div>
 
 <script src="https://unpkg.com/jsqr/dist/jsQR.js"></script>
 <script>
-  // Регистрация PWA
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js');
-  }
+  if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
 
-  const startBtn = document.getElementById("start");
-  const manualBtn = document.getElementById("manualBtn");
-  const removeBtn = document.getElementById("remove");
-  const exportBtn = document.getElementById("exportBtn");
-  const videoContainer = document.getElementById("videoContainer");
-  const closeVideo = document.getElementById("closeVideo");
+  const tableBody = document.getElementById("tableBody");
   const video = document.getElementById("video");
   const canvas = document.getElementById("canvas");
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  const tableBody = document.getElementById("tableBody");
-
+  const dbStatus = document.getElementById('dbStatus');
+  
   let stream = null;
   let scanning = false;
   let counter = 0;
+  let productDatabase = {};
 
-  // --- ЛОГИКА КАМЕРЫ ---
-  startBtn.onclick = async () => {
+  // --- ИНИЦИАЛИЗАЦИЯ: ЗАГРУЗКА ИЗ ПАМЯТИ ---
+  window.addEventListener('DOMContentLoaded', () => {
+    const savedDb = localStorage.getItem('productDatabase');
+    if (savedDb) {
+      try {
+        productDatabase = JSON.parse(savedDb);
+        const count = Object.keys(productDatabase).length;
+        dbStatus.innerText = `✅ База загружена из памяти (${count} поз.)`;
+      } catch (e) {
+        dbStatus.innerText = `❌ Ошибка памяти. Загрузите файл.`;
+        console.error(e);
+      }
+    } else {
+      dbStatus.innerText = `❌ База не загружена. Используйте кнопку выше.`;
+    }
+  });
+
+  // --- ОБРАБОТКА ФАЙЛА ---
+  document.getElementById('csvFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      const text = event.target.result;
+      const lines = text.split(/\r?\n/);
+      const newDatabase = {};
+      
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const columns = lines[i].split(';');
+        
+        if (columns.length >= 4) {
+          const name = columns[0].trim();
+          const qrCode = columns[1].trim().replace(/^0+/, '');
+          const stock = columns[2].trim();
+          const cell = columns[3].trim();
+          newDatabase[qrCode] = { name, stock, cell };
+        }
+      }
+      
+      productDatabase = newDatabase;
+      const count = Object.keys(productDatabase).length;
+      
+      // Сохраняем в localStorage
+      try {
+        localStorage.setItem('productDatabase', JSON.stringify(productDatabase));
+        dbStatus.innerText = `✅ Сохранено в память: ${count} поз.`;
+        alert(`База обновлена и сохранена!`);
+      } catch (e) {
+        alert(`Ошибка сохранения в память: база слишком большая.`);
+        dbStatus.innerText = `⚠️ Загружено без сохранения (${count} поз.)`;
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+  });
+
+  // --- КАМЕРА ---
+  document.getElementById("start").onclick = async () => {
     try {
-      videoContainer.style.display = "block";
+      document.getElementById("videoContainer").style.display = "block";
       stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       video.srcObject = stream;
-      
-      // Зум для новых Android
       const track = stream.getVideoTracks()[0];
       const caps = track.getCapabilities?.();
       if (caps?.zoom) {
         await track.applyConstraints({ advanced: [{ zoom: Math.min(2, caps.zoom.max) }] });
       }
-
       scanning = true;
       scan();
     } catch (e) { alert("Ошибка камеры: " + e); }
   };
 
-  closeVideo.onclick = stopCamera;
-
   function stopCamera() {
     scanning = false;
     if (stream) stream.getTracks().forEach(t => t.stop());
-    videoContainer.style.display = "none";
+    document.getElementById("videoContainer").style.display = "none";
   }
+
+  document.getElementById("closeVideo").onclick = stopCamera;
 
   function scan() {
     if (!scanning) return;
@@ -114,46 +180,65 @@
     requestAnimationFrame(scan);
   }
 
-  // --- ЛОГИКА ДАННЫХ ---
-  manualBtn.onclick = () => {
-    const val = prompt("Введите данные в формате: Значение -- Доп", "000123 -- 1");
+  // --- ОБРАБОТКА ДАННЫХ ---
+  document.getElementById("manualBtn").onclick = () => {
+    const val = prompt("Введите код или формат 'Код -- Доп':", "");
     if (val) processAndAdd(val);
   };
 
-  function processAndAdd(data) {
+  function processAndAdd(rawData) {
     counter++;
-    let first = data, second = "-";
-    if (data.includes("--")) {
-      const parts = data.split("--");
-      first = parts[0].trim().replace(/^0+/, '') || "0";
-      second = parts[1].trim();
+    let code = rawData, extra = "-";
+    if (rawData.includes("--")) {
+      const parts = rawData.split("--");
+      code = parts[0].trim();
+      extra = parts[1].trim();
     }
-    addRow(counter, first, second);
+    
+    const cleanCode = code.replace(/^0+/, '') || "0";
+    const info = productDatabase[cleanCode];
+
+    if (info) {
+      addRow(counter, code, extra, info.name, info.stock, info.cell, "OK");
+    } else {
+      addRow(counter, code, extra, "", "", "", "НЕ НАЙДЕН!");
+    }
   }
 
-  function addRow(num, v1, v2) {
+  function addRow(num, code, extra, name, stock, cell, status) {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${num}</td><td>${v1}</td><td>${v2}</td><td contenteditable="true">1</td><td>OK</td>`;
+    const statusClass = status === "OK" ? "status-ok" : "status-bad";
+    tr.innerHTML = `
+      <td>${num}</td>
+      <td>${code}</td>
+      <td>${extra}</td>
+      <td>${name}</td>
+      <td>${stock}</td>
+      <td>${cell}</td>
+      <td contenteditable="true">1</td>
+      <td class="${statusClass}">${status}</td>
+    `;
     tableBody.appendChild(tr);
+    tr.scrollIntoView({ behavior: "smooth" });
   }
 
-  removeBtn.onclick = () => {
+  document.getElementById("remove").onclick = () => {
     if (tableBody.lastElementChild) {
       tableBody.removeChild(tableBody.lastElementChild);
       counter--;
     }
   };
 
-  exportBtn.onclick = () => {
-    let csv = "N,ID,Extra,Qty,Status\n";
+  document.getElementById("exportBtn").onclick = () => {
+    let csv = "\uFEFFN;Код;Доп;Наименование;Остаток;Ячейка;Кол-во;Статус\n";
     document.querySelectorAll("#tableBody tr").forEach(tr => {
       const cols = Array.from(tr.querySelectorAll("td")).map(td => td.innerText);
-      csv += cols.join(",") + "\n";
+      csv += cols.join(";") + "\n";
     });
-    const blob = new Blob([csv], { type: "text/csv" });
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `scan_${new Date().getTime()}.csv`;
+    a.download = `inventory_${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
   };
 </script>
