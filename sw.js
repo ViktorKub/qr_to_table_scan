@@ -1,8 +1,9 @@
-const CACHE_NAME = 'qr-scanner-v1';
+const CACHE_NAME = 'qr-scanner-v1.1';
 const ASSETS = [
   './',
   './index.html',
-  './jsQR.js'
+  './jsQR.js',
+  './icon.png'
 ];
 
 self.addEventListener('install', (e) => {
@@ -11,4 +12,5 @@ self.addEventListener('install', (e) => {
 
 self.addEventListener('fetch', (e) => {
   e.respondWith(caches.match(e.request).then(res => res || fetch(e.request)));
+
 });
