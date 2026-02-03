@@ -1,8 +1,0 @@
-[{
-      "relation": ["delegate_permission/common.handle_all_urls"],
-      "target": {
-        "namespace": "android_app",
-        "package_name": "io.github.viktorkub.twa",
-        "sha256_cert_fingerprints": ["C0:87:A4:F4:0F:FA:7D:AD:AA:6C:39:63:8A:D8:A5:05:14:EC:D1:57:A4:E2:15:8D:D7:38:48:0E:F5:AE:48:A3"]
-      }
-    }]
