@@ -1,31 +1,24 @@
-// Меняйте эту цифру (v1, v2, v3...), чтобы приложение обновилось на телефонах
-const CACHE_VERSION = 'v1.0.2'; 
-const CACHE_NAME = `qr-scanner-${CACHE_VERSION}`;
+const CACHE_VERSION = 'v1.0.7'; 
+const CACHE_NAME = `qr-tsd-${CACHE_VERSION}`;
 
 const ASSETS = [
   './',
   './index.html',
+  './style.css',
+  './app.js',
+  './scanner.js',
   './manifest.json',
   './jsQR.js'
 ];
 
-// Установка: кэшируем ресурсы
 self.addEventListener('install', (e) => {
-  self.skipWaiting(); // Принудительно активируем новый SW
-  e.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS))
-  );
+  e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)));
 });
 
-// Активация: удаляем старые версии кэша
 self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.map(key => {
-        if (key !== CACHE_NAME) return caches.delete(key);
-      })
-    ))
-  );
+  e.waitUntil(caches.keys().then(keys => Promise.all(
+    keys.map(key => key !== CACHE_NAME ? caches.delete(key) : null)
+  )));
 });
 
 self.addEventListener('fetch', (e) => {
