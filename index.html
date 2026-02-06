@@ -1,75 +1,87 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<link rel="manifest" href="manifest.json">
-<title>QR Scanner</title>
-
-<style>
-  :root { --primary: #2f80ed; --bg: #f4f4f9; }
-  
-  body { margin: 0; font-family: sans-serif; background: var(--bg); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-
-  /* Верхняя узкая полоска статуса */
-  #dbStatusStrip { 
-    background: #333; color: #fff; font-size: 11px; padding: 4px 10px; 
-    text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-
-  /* Блок управления сверху */
-  #topControls { padding: 8px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; background: #fff; border-bottom: 1px solid #ddd; }
-  
-  #topControls button { padding: 10px 4px; font-size: 11px; border-radius: 6px; border: none; background: #6c757d; color: #fff; font-weight: bold; }
-  #topControls button.db-btn { background: #555; }
-  #topControls button.export-btn { background: #28a745; }
-
-  /* Таблица с прокруткой */
-  .table-wrapper { flex: 1; overflow: auto; background: #fff; }
-  table { width: 100%; border-collapse: collapse; min-width: 500px; }
-  th, td { border: 1px solid #eee; padding: 10px; text-align: center; font-size: 12px; }
-  th { background: #f8f9fa; position: sticky; top: 0; z-index: 2; }
-
-  /* Нижняя панель со сканером */
-  #bottomBar { padding: 12px; background: #fff; border-top: 1px solid #ddd; display: flex; justify-content: center; }
-  #startScan { width: 100%; max-width: 400px; padding: 16px; font-size: 18px; border-radius: 12px; border: none; background: var(--primary); color: #fff; font-weight: bold; box-shadow: 0 4px 12px rgba(47,128,237,0.3); }
-
-  /* Оверлей камеры */
-  #videoContainer { display: none; position: fixed; top: 0; left: 0; z-index: 100; background: #000; width: 100%; height: 100%; }
-  #video { width: 100%; height: 100%; object-fit: cover; }
-  #closeVideo { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 101; background: rgba(255, 59, 48, 0.9); padding: 16px 40px; border-radius: 30px; color: white; border: none; font-size: 16px; font-weight: bold; }
-
-  .status-bad { color: #d93025; font-weight: bold; }
-  .status-ok { color: #188038; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+  <title>QR_Scan</title>
 </head>
 <body>
 
-<div id="dbStatusStrip">Загрузка базы данных...</div>
-
-<div id="topControls">
-  <button class="db-btn" onclick="document.getElementById('csvFile').click()">📂 База</button>
-  <button onclick="manualInput()">⌨️ Ввод</button>
-  <button onclick="removeLast()">🗑️ Удал.</button>
-  <button class="export-btn" onclick="exportCSV()">💾 CSV</button>
+<div id="sidebar" class="sidebar">
+  <div class="sidebar-header">Меню системы</div>
+  <nav>
+    <button onclick="switchModule('inventory')" class="nav-btn active">📦 Инвентаризация</button>
+    <button onclick="switchModule('viewDb')" class="nav-btn">🗃️ Просмотр БД</button>
+    <button onclick="switchModule('settings')" class="nav-btn">⚙️ Настройки</button>
+  </nav>
+  <div class="sidebar-footer">v 2.1.0</div>
 </div>
+<div id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
-<input type="file" id="csvFile" accept=".csv" style="display:none">
+<div id="dbStatusStrip">БД не загружена</div>
 
-<div class="table-wrapper">
-  <table>
-    <thead>
-      <tr>
-        <th>№</th><th>Код</th><th>Доп</th><th>Наименование</th><th>Ост.</th><th>Яч.</th><th>Кол</th><th>Статус</th>
-      </tr>
-    </thead>
-    <tbody id="tableBody"></tbody>
-  </table>
-</div>
+<main id="inventoryModule">
+  <div id="topControls">
+    <button class="db-btn" onclick="document.getElementById('csvFile').click()">📂 База</button>
+    <button class="clear-btn" onclick="handleDeleteAction()">🧹 Удалить</button>
+    <button onclick="removeLast()">🗑️ Удал. посл.</button>
+    <button class="export-btn" onclick="exportCSV()">💾 CSV</button>
+  </div>
+  <input type="file" id="csvFile" accept=".csv" style="display:none">
 
-<div id="bottomBar">
-  <button id="startScan">📸 ОТКРЫТЬ СКАНЕР</button>
-</div>
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr><th>№</th><th>Код</th><th>Наименование</th><th>Доп</th><th>Яч.</th><th>Ост.</th><th>Кол</th><th>Статус</th></tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <div id="bottomFixedContainer">
+    <div id="tabBarContainer">
+      <button id="addTabBtn" onclick="addTab()">+</button>
+    </div>
+    <div id="actionButtons">
+      <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+      <button id="manualBtn">⌨️ ВВОД</button>
+      <button id="startScan">📸 СКАНЕР</button>
+    </div>
+  </div>
+</main>
+
+<main id="viewDbModule" style="display: none;">
+  <div class="search-container">
+    <input type="text" id="dbSearchInput" placeholder="🔍 Поиск по базе..." oninput="searchDb(this.value)">
+  </div>
+
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr><th>Код</th><th>Наименование</th><th>Доп</th><th>Ячейка</th><th>Остаток</th></tr>
+      </thead>
+      <tbody id="dbTableBody"></tbody>
+    </table>
+  </div>
+
+  <div class="bottom-simple-bar">
+  <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+  </div>
+</main>
+
+<main id="settingsModule" style="display: none;">
+  <div style="padding: 20px; flex-grow: 1;">
+    <h2>Настройки</h2>
+    <p>Здесь будут настройки приложения.</p>
+    <p style="color: #666; font-size: 14px;">Пока пусто.</p>
+  </div>
+
+  <div class="bottom-simple-bar">
+  <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+  </div>
+</main>
 
 <div id="videoContainer">
   <video id="video" autoplay playsinline></video>
@@ -77,142 +89,9 @@
   <button id="closeVideo">ЗАКРЫТЬ</button>
 </div>
 
-<script src="./jsQR.js"></script>
-<script>
-  // Регистрация SW
-  if ('serviceWorker' in navigator) { 
-    navigator.serviceWorker.register('sw.js').then(reg => {
-      reg.onupdatefound = () => {
-        const installingWorker = reg.installing;
-        installingWorker.onstatechange = () => {
-          if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            if(confirm("Доступно обновление! Перезагрузить?")) window.location.reload();
-          }
-        };
-      };
-    });
-  }
-
-  const tableBody = document.getElementById("tableBody");
-  const video = document.getElementById("video");
-  const canvas = document.getElementById("canvas");
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  const dbStatus = document.getElementById('dbStatusStrip');
-  
-  let stream = null;
-  let scanning = false;
-  let counter = 0;
-  let productDatabase = {};
-
-  // Загрузка из памяти
-  window.addEventListener('DOMContentLoaded', () => {
-    const savedDb = localStorage.getItem('productDatabase');
-    if (savedDb) {
-      productDatabase = JSON.parse(savedDb);
-      dbStatus.innerText = `✅ БД: ${Object.keys(productDatabase).length} поз. (из памяти)`;
-    } else {
-      dbStatus.innerText = `❌ База не загружена`;
-    }
-  });
-
-  // Файл CSV
-  document.getElementById('csvFile').onchange = function(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(event) {
-      const lines = event.target.result.split(/\r?\n/);
-      const newDb = {};
-      for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(';');
-        if (cols.length >= 4) {
-          const code = cols[1].trim().replace(/^0+/, '');
-          newDb[code] = { name: cols[0].trim(), stock: cols[2].trim(), cell: cols[3].trim() };
-        }
-      }
-      productDatabase = newDb;
-      localStorage.setItem('productDatabase', JSON.stringify(newDb));
-      dbStatus.innerText = `✅ БД обновлена: ${Object.keys(newDb).length} поз.`;
-      alert("База успешно сохранена!");
-    };
-    reader.readAsText(file, 'UTF-8');
-  };
-
-  // Сканер
-  document.getElementById("startScan").onclick = async () => {
-    try {
-      document.getElementById("videoContainer").style.display = "block";
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-      video.srcObject = stream;
-      const track = stream.getVideoTracks()[0];
-      const caps = track.getCapabilities?.();
-      if (caps?.zoom) await track.applyConstraints({ advanced: [{ zoom: Math.min(2, caps.zoom.max) }] });
-      scanning = true;
-      requestAnimationFrame(scan);
-    } catch (e) { alert("Ошибка камеры: " + e); }
-  };
-
-  function scan() {
-    if (!scanning) return;
-    if (video.readyState === video.HAVE_ENOUGH_DATA) {
-      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-      ctx.drawImage(video, 0, 0);
-      const qr = jsQR(ctx.getImageData(0,0,canvas.width,canvas.height).data, canvas.width, canvas.height);
-      if (qr) { processAndAdd(qr.data); return stopCamera(); }
-    }
-    requestAnimationFrame(scan);
-  }
-
-  function stopCamera() {
-    scanning = false;
-    if (stream) stream.getTracks().forEach(t => t.stop());
-    document.getElementById("videoContainer").style.display = "none";
-  }
-
-  document.getElementById("closeVideo").onclick = stopCamera;
-
-  function manualInput() {
-    const val = prompt("Введите код:");
-    if (val) processAndAdd(val);
-  }
-
-  function processAndAdd(rawData) {
-    counter++;
-    let code = rawData, extra = "-";
-    if (rawData.includes("--")) {
-      const parts = rawData.split("--");
-      code = parts[0].trim(); extra = parts[1].trim();
-    }
-    const info = productDatabase[code.replace(/^0+/, '')];
-    addRow(counter, code, extra, info);
-  }
-
-  function addRow(num, code, extra, info) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${num}</td><td>${code}</td><td>${extra}</td>
-      <td>${info ? info.name : ''}</td><td>${info ? info.stock : ''}</td><td>${info ? info.cell : ''}</td>
-      <td contenteditable="true">1</td>
-      <td class="${info ? 'status-ok' : 'status-bad'}">${info ? 'OK' : 'НЕ НАЙДЕН!'}</td>
-    `;
-    tableBody.appendChild(tr);
-    tr.scrollIntoView({ behavior: "smooth" });
-  }
-
-  function removeLast() {
-    if (tableBody.lastElementChild) { tableBody.removeChild(tableBody.lastElementChild); counter--; }
-  }
-
-  function exportCSV() {
-    let csv = "\uFEFFN;Код;Доп;Наименование;Остаток;Ячейка;Кол-во;Статус\n";
-    document.querySelectorAll("#tableBody tr").forEach(tr => {
-      csv += Array.from(tr.querySelectorAll("td")).map(td => td.innerText).join(";") + "\n";
-    });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
-    a.download = `inventory_${new Date().toISOString().slice(0,10)}.csv`;
-    a.click();
-  }
-</script>
+<script src="jsQR.js"></script>
+<script src="scanner.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
+
