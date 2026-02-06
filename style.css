@@ -1,0 +1,246 @@
+:root {
+  --primary: #2f80ed;
+  --danger: #d93025;
+  --bg: #f4f4f9;
+  --sidebar-w: 260px;
+}
+
+/* Применяем общую логику ко всем модулям main */
+main {
+  display: none;
+  flex-direction: column;
+  height: calc(100vh - 24px);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Инвентаризация активна по умолчанию */
+#inventoryModule {
+  display: flex;
+}
+
+/* Для страниц Просмотра БД и Настроек */
+#viewDbModule, #settingsModule {
+  background: var(--bg);
+}
+
+body { margin: 0; font-family: sans-serif; background: var(--bg); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+/* Боковая панель */
+.sidebar {
+  position: fixed; left: calc(-1 * var(--sidebar-w)); top: 0; width: var(--sidebar-w);
+  height: 100%; background: #222; color: white; z-index: 1000;
+  transition: transform 0.3s ease; display: flex; flex-direction: column;
+}
+.sidebar.open { transform: translateX(var(--sidebar-w)); }
+.sidebar-header { padding: 20px; font-weight: bold; font-size: 18px; border-bottom: 1px solid #444; }
+.nav-btn { width: 100%; padding: 15px 20px; background: none; border: none; color: #ccc; text-align: left; font-size: 16px; cursor: pointer; }
+.nav-btn.active { background: var(--primary); color: white; }
+.sidebar-footer { padding: 10px 20px; font-size: 10px; color: #666; }
+
+#sidebarOverlay {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999;
+}
+#sidebarOverlay.open { display: block; }
+
+
+/* Статус-полоска (самый верх) */
+#dbStatusStrip { 
+  background: #222; 
+  color: #888; 
+  font-size: 11px; 
+  height: 24px; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+#dbStatusStrip.loaded { color: #4af2a1; background: #1a1a1a; font-weight: bold; }
+
+/* Верхние кнопки: 4 равных колонки */
+#topControls { 
+  display: grid; 
+  grid-template-columns: repeat(4, 1fr); 
+  gap: 6px; 
+  padding: 8px; 
+  background: #fff; 
+  border-bottom: 1px solid #ddd; 
+}
+#topControls button { padding: 10px 2px; font-size: 10px; border-radius: 6px; border: none; background: #6c757d; color: #fff; font-weight: bold; }
+
+/* Главный контейнер модуля */
+#inventoryModule {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 24px); /* Высота экрана минус полоска статуса */
+}
+  
+  /* Верхние сервисные кнопки */
+  #topControls { padding: 8px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 6px; background: #fff; border-bottom: 1px solid #ddd; z-index: 10; }
+  #topControls button { padding: 10px 4px; font-size: 10px; border-radius: 6px; border: none; background: #6c757d; color: #fff; font-weight: bold; }
+  #topControls button.clear-btn { background: var(--danger); }
+  #topControls button.db-btn { background: #555; }
+  #topControls button.export-btn { background: #28a745; }
+
+  /* Таблица */
+  /*.table-wrapper { flex: 1; overflow: auto; background: #fff; border-bottom: 2px solid #bbb; }*/
+  .table-wrapper { 
+    flex-grow: 1; 
+    overflow: auto; 
+    background: #fff; 
+  }
+  table { width: 100%; border-collapse: collapse; min-width: 500px; }
+  th, td { border: 1px solid #eee; padding: 12px 6px; text-align: center; font-size: 12px; }
+  th { background: #f8f9fa; position: sticky; top: 0; z-index: 2; }
+  td[contenteditable="true"] { background: #fffdf0; font-weight: bold; }
+
+
+  /* Фиксация нижнего блока */
+/* Общий фиксированный контейнер для нижней части (Инвентаризация) */
+#bottomFixedContainer {
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+}
+
+/* Контейнер вкладок (теперь он всегда над кнопками) */
+#tabBarContainer { 
+  background: #bbb; display: flex; align-items: flex-start; 
+    padding-left: 10px; overflow-x: auto; scrollbar-width: none;
+    box-shadow: inset 0 5px 5px rgba(0,0,0,0.1);
+}
+
+.tab { 
+  padding: 10px 18px; background: var(--tab-inactive); margin-right: 4px; 
+    border-radius: 0 0 12px 12px; /* Скругление снизу */
+    font-size: 12px; font-weight: bold; color: #666; white-space: nowrap; 
+    border: 1px solid #999; border-top: none; 
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s, background 0.2s;
+}
+
+.tab.active { 
+  background: var(--bg); color: var(--primary); 
+    padding-bottom: 15px; /* Удлиняем активную вкладку вниз */
+    border-color: #bbb; border-bottom: 2px solid var(--primary);
+    transform: translateY(0);background: #fff; /* Активная вкладка сливается с белой таблицей */
+  color: var(--primary); 
+  font-weight: bold;
+  border-bottom: 1px solid var(--primary);
+}
+
+#addTabBtn {
+  padding: 8px 16px; background: #999; color: white;
+    border-radius: 0 0 12px 12px; border: none; font-weight: bold; font-size: 18px; 
+}
+
+/* Скрываем скроллбар для Chrome, Safari и Opera */
+#tabBarContainer::-webkit-scrollbar {
+  display: none;
+}
+
+/* Скрываем скроллбар для IE, Edge и Firefox */
+#tabBarContainer {
+  -ms-overflow-style: none;  /* IE и Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Общие правила для всех нижних панелей (в инвентаризации, БД и настройках) */
+#bottomFixedContainer, .bottom-simple-bar {
+  background: #fff;
+  border-top: 1px solid #ddd;
+  padding: 2px;
+  display: flex;
+  justify-content: flex-start; /* Прижимает содержимое к левому краю */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Универсальная квадратная кнопка меню (для всех страниц) */
+.menu-btn {
+  flex: 0 0 55px; /* Фиксированный размер, не сжимать */
+  width: 55px;
+  height: 55px;
+  background: #444; 
+  color: white; 
+  border: none; 
+  border-radius: 12px; 
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+/* Уточнение для главной страницы, чтобы кнопки ВВОД и СКАНЕР занимали остаток места */
+/* Ряд основных кнопок управления (Меню, Ввод, Сканер) */
+#actionButtons { 
+  padding: 2px; 
+  display: flex; 
+  flex-direction: row; /* Выстраиваем кнопки ГОРИЗОНТАЛЬНО */
+  gap: 10px; 
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Растягиваем ВВОД и СКАНЕР, чтобы они делили место */
+#manualBtn {
+  flex: 1; 
+  height: 55px;
+  border-radius: 12px;
+  border: 1px solid #ccc;
+  background: #fff;
+  font-weight: bold;
+}
+
+#startScan {
+  flex: 1.5; 
+  height: 55px;
+  border-radius: 12px;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-weight: bold;
+}
+
+/* Стиль для вторичных страниц (БД, Настройки), где есть только Меню */
+.bottom-simple-bar {
+  background: #fff;
+  border-top: 1px solid #ddd;
+  padding: 12px;
+  display: flex;
+  justify-content: flex-start;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Стили для поиска в модуле БД */
+.search-container {
+  padding: 10px;
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+}
+#dbSearchInput {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-sizing: border-box;
+  background: #f9f9f9;
+}
+#dbSearchInput:focus {
+  border-color: var(--primary);
+  outline: none;
+  background: #fff;
+}
+
+  /* Камера */
+  #videoContainer { display: none; position: fixed; top: 0; left: 0; z-index: 100; background: #000; width: 100%; height: 100%; }
+  #video { width: 100%; height: 100%; object-fit: cover; }
+  #closeVideo { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 101; background: rgba(255, 59, 48, 0.9); padding: 16px 40px; border-radius: 30px; color: white; border: none; font-size: 16px; font-weight: bold; }
+
+  .status-bad { color: var(--danger); font-weight: bold; }
+  .status-ok { color: #188038; }
