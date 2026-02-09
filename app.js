@@ -175,7 +175,11 @@ function updateStatusText() {
 
 // === ОБРАБОТКА СКАНА ===
 window.processAndAdd = function(rawData) {
-    const code = rawData.trim();
+    if (rawData.includes("--")) {
+      const parts = rawData.split("--");
+      code = parts[0].trim();
+    }
+    //const code = rawData.trim();
     const cleanCode = code.replace(/^0+/, '') || "0";
     const info = productDatabase[cleanCode];
 
@@ -262,4 +266,5 @@ function exportCSV() {
     link.download = `${current.name}.csv`;
     link.click();
 }
+
 
