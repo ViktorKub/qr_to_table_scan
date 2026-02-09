@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v1.0.7'; 
+const CACHE_VERSION = 'v1.0.8'; 
 const CACHE_NAME = `qr-tsd-${CACHE_VERSION}`;
 
 const ASSETS = [
@@ -24,3 +24,4 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   e.respondWith(caches.match(e.request).then(res => res || fetch(e.request)));
 });
+
