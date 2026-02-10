@@ -175,17 +175,21 @@ function updateStatusText() {
 
 // === ОБРАБОТКА СКАНА ===
 window.processAndAdd = function(rawData) {
+
     if (rawData.includes("--")) {
       const parts = rawData.split("--");
-      code = parts[0].trim();
+      rawcode = parts[0].trim();
+    }else {
+        code = rawData.trim();
     }
-    //const code = rawData.trim();
+
+    // Удаляем ведущие нули
     const cleanCode = code.replace(/^0+/, '') || "0";
     const info = productDatabase[cleanCode];
 
     const newItem = {
-        code: code,
-        name: info ? info.name : "Неизвестный товар",
+        code: cleanCode,
+        name: info ? info.name : "Неизвестный код",
         extra: info ? info.extra : "-",
         cell: info ? info.cell : "-",
         stock: info ? info.stock : "-",
@@ -266,5 +270,6 @@ function exportCSV() {
     link.download = `${current.name}.csv`;
     link.click();
 }
+
 
 
