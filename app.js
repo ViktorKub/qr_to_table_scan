@@ -175,16 +175,23 @@ function updateStatusText() {
 
 // === ОБРАБОТКА СКАНА ===
 window.processAndAdd = function(rawData) {
+    let code = ""; // Объявляем переменную code
 
     if (rawData.includes("--")) {
-      const parts = rawData.split("--");
-      rawcode = parts[0].trim();
-    }else {
+        const parts = rawData.split("--");
+        code = parts[0].trim();
+    } else {
         code = rawData.trim();
     }
 
     // Удаляем ведущие нули
     const cleanCode = code.replace(/^0+/, '') || "0";
+
+    if (!productDatabase) {
+        alert("База данных не загружена!");
+        return;
+    }
+
     const info = productDatabase[cleanCode];
 
     const newItem = {
@@ -200,7 +207,7 @@ window.processAndAdd = function(rawData) {
     tabs[activeTabIndex].scans.push(newItem);
     saveState();
     renderTable();
-    
+
     const wrapper = document.querySelector('.table-wrapper');
     if (wrapper) wrapper.scrollTop = wrapper.scrollHeight;
 };
@@ -270,6 +277,7 @@ function exportCSV() {
     link.download = `${current.name}.csv`;
     link.click();
 }
+
 
 
 
