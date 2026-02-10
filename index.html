@@ -16,7 +16,7 @@
     <button onclick="switchModule('viewDb')" class="nav-btn">🗃️ Просмотр БД</button>
     <button onclick="switchModule('settings')" class="nav-btn">⚙️ Настройки</button>
   </nav>
-  <div class="sidebar-footer">v 2.1.0</div>
+  <div class="sidebar-footer">v1.0.8</div>
 </div>
 <div id="sidebarOverlay" onclick="toggleSidebar()"></div>
 
@@ -25,7 +25,7 @@
 <main id="inventoryModule">
   <div id="topControls">
     <button class="db-btn" onclick="document.getElementById('csvFile').click()">📂 База</button>
-    <button class="clear-btn" onclick="handleDeleteAction()">🧹 Удалить</button>
+    <button class="clear-btn" onclick="handleDeleteAction()">🧹 Удалить лист</button>
     <button onclick="removeLast()">🗑️ Удал. посл.</button>
     <button class="export-btn" onclick="exportCSV()">💾 CSV</button>
   </div>
@@ -94,4 +94,5 @@
 <script src="app.js"></script>
 </body>
 </html>
+
 
