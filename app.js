@@ -1,6 +1,13 @@
 let productDatabase = {};
 let tabs = [{ name: "Лист 1", scans: [] }];
 let activeTabIndex = 0;
+// Функция для коррекции высоты на мобильных (фикс адресной строки)
+function setAppHeight() {
+    const doc = document.documentElement;
+    doc.style.setProperty('--app-height', `${window.innerHeight}px`);
+}
+window.addEventListener('resize', setAppHeight);
+setAppHeight();
 
 // === ИНИЦИАЛИЗАЦИЯ ===
 window.addEventListener('DOMContentLoaded', () => {
@@ -277,6 +284,7 @@ function exportCSV() {
     link.download = `${current.name}.csv`;
     link.click();
 }
+
 
 
 
